@@ -53,7 +53,14 @@ class AirplaneTypeSerializer(serializers.ModelSerializer):
 class AirplaneSerializer(serializers.ModelSerializer):
     class Meta:
         model = Airplane
-        fields = ("id", "name", "rows", "seats_in_row", "airplane_type")
+        fields = (
+            "id",
+            "name",
+            "rows",
+            "seats_in_row",
+            "airplane_type",
+            "image"
+        )
 
 
 class AirplaneListSerializer(AirplaneSerializer):
@@ -71,7 +78,8 @@ class AirplaneListSerializer(AirplaneSerializer):
             "rows",
             "seats_in_row",
             "airplane_type",
-            "capacity"
+            "capacity",
+            "image"
         )
 
 
@@ -87,8 +95,15 @@ class AirplaneDetailSerializer(AirplaneSerializer):
             "rows",
             "seats_in_row",
             "airplane_type",
-            "capacity"
+            "capacity",
+            "image"
         )
+
+
+class AirplaneImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Airplane
+        fields = ("id", "image")
 
 
 class FlightSerializer(serializers.ModelSerializer):
@@ -159,10 +174,28 @@ class FlightDetailSerializer(FlightSerializer):
         )
 
 
-class TicketSeatsSerializer(TicketSerializer):
+class TicketSeatsSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ticket
-        fields = ("row", "seat")
+        fields = ("row", "seat", "flight")
+
+    def validate(self, data):
+        flight = data.get("flight")
+        row = data.get("row")
+        seat = data.get("seat")
+
+        if flight:
+            if row > flight.airplane.rows:
+                raise serializers.ValidationError(
+                    f"Row number must be in range: (1, {flight.airplane.rows})"
+                )
+            if seat > flight.airplane.seats_in_row:
+                raise serializers.ValidationError(
+                    f"Seat number must be in range: "
+                    f"(1, {flight.airplane.seats_in_row})"
+                )
+
+        return data
 
 
 class OrderSerializer(serializers.ModelSerializer):

@@ -2,7 +2,6 @@ import os
 import uuid
 
 from django.conf import settings
-from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.text import slugify
 
@@ -159,19 +158,3 @@ class Ticket(models.Model):
         return (
             f"Flight {self.flight} (row: {self.row}, seat: {self.seat})"
         )
-
-    def clean(self):
-        if self.row > self.flight.airplane.rows:
-            raise ValidationError(
-                f"Row number must be in range: "
-                f"(1, {self.flight.airplane.rows})"
-            )
-        if self.seat > self.flight.airplane.seats_in_row:
-            raise ValidationError(
-                f"Seat number must be in range: "
-                f"(1, {self.flight.airplane.seats_in_row})"
-            )
-
-    def save(self, *args, **kwargs):
-        self.full_clean()
-        super().save(*args, **kwargs)
