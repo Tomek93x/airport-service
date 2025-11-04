@@ -1,4 +1,4 @@
-from django.db.models import F, Count
+from django.db.models import F, Count, Q
 from rest_framework import viewsets, mixins
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
@@ -108,12 +108,33 @@ class FlightViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = self.queryset
 
+        # Add tickets_available annotation for list view
         if self.action == "list":
             queryset = queryset.annotate(
                 tickets_available=(
                     F("airplane__rows") * F("airplane__seats_in_row")
                     - Count("tickets")
                 )
+            )
+
+        # Filtering
+        source = self.request.query_params.get("source")
+        destination = self.request.query_params.get("destination")
+        date = self.request.query_params.get("date")
+
+        if source:
+            queryset = queryset.filter(
+                route__source__name__icontains=source
+            )
+
+        if destination:
+            queryset = queryset.filter(
+                route__destination__name__icontains=destination
+            )
+
+        if date:
+            queryset = queryset.filter(
+                departure_time__date=date
             )
 
         return queryset
