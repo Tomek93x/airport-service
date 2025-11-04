@@ -1,9 +1,10 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework.test import APIClient
 from rest_framework import status
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from airport.models import (
     Airport,
@@ -18,7 +19,6 @@ from airport.models import (
 from airport.serializers import (
     AirportSerializer,
     AirplaneListSerializer,
-    FlightListSerializer,
 )
 
 AIRPORT_URL = reverse("airport:airport-list")
@@ -36,30 +36,32 @@ def sample_airport(**params):
     return Airport.objects.create(**defaults)
 
 
-def sample_airplane_type(**params):
-    defaults = {"name": "Test Type"}
-    defaults.update(params)
-    return AirplaneType.objects.create(**defaults)
+def sample_airplane_type(name=None):
+    """Create airplane type with unique name"""
+    if name is None:
+        import uuid
+        name = f"Test Type {uuid.uuid4()}"
+    return AirplaneType.objects.create(name=name)
 
 
 def sample_airplane(**params):
-    airplane_type = sample_airplane_type()
+    if "airplane_type" not in params:
+        params["airplane_type"] = sample_airplane_type()
     defaults = {
         "name": "Test Airplane",
         "rows": 20,
         "seats_in_row": 6,
-        "airplane_type": airplane_type,
     }
     defaults.update(params)
     return Airplane.objects.create(**defaults)
 
 
 def sample_route(**params):
-    source = sample_airport(name="Source Airport")
-    destination = sample_airport(name="Destination Airport")
+    if "source" not in params:
+        params["source"] = sample_airport(name="Source Airport")
+    if "destination" not in params:
+        params["destination"] = sample_airport(name="Destination Airport")
     defaults = {
-        "source": source,
-        "destination": destination,
         "distance": 1000,
     }
     defaults.update(params)
@@ -67,13 +69,13 @@ def sample_route(**params):
 
 
 def sample_flight(**params):
-    route = sample_route()
-    airplane = sample_airplane()
+    if "route" not in params:
+        params["route"] = sample_route()
+    if "airplane" not in params:
+        params["airplane"] = sample_airplane()
     defaults = {
-        "route": route,
-        "airplane": airplane,
-        "departure_time": datetime.now() + timedelta(days=1),
-        "arrival_time": datetime.now() + timedelta(days=1, hours=2),
+        "departure_time": timezone.now() + timedelta(days=1),
+        "arrival_time": timezone.now() + timedelta(days=1, hours=2),
     }
     defaults.update(params)
     return Flight.objects.create(**defaults)
@@ -92,8 +94,8 @@ class AuthenticatedAirportApiTests(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.user = get_user_model().objects.create_user(
-            "test@test.com",
-            "testpass123",
+            username="testuser",
+            password="testpass123",
         )
         self.client.force_authenticate(self.user)
 
@@ -126,8 +128,8 @@ class AirplaneTests(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.user = get_user_model().objects.create_user(
-            "test@test.com",
-            "testpass123",
+            username="testuser",
+            password="testpass123",
         )
         self.client.force_authenticate(self.user)
 
@@ -152,8 +154,8 @@ class FlightTests(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.user = get_user_model().objects.create_user(
-            "test@test.com",
-            "testpass123",
+            username="testuser",
+            password="testpass123",
         )
         self.client.force_authenticate(self.user)
 
@@ -175,8 +177,8 @@ class FlightTests(TestCase):
             destination=airport1
         )
 
-        flight1 = sample_flight(route=route1)
-        flight2 = sample_flight(route=route2)
+        sample_flight(route=route1)
+        sample_flight(route=route2)
 
         res = self.client.get(FLIGHT_URL, {"source": "Warsaw"})
 
@@ -188,8 +190,8 @@ class OrderTests(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.user = get_user_model().objects.create_user(
-            "test@test.com",
-            "testpass123",
+            username="testuser",
+            password="testpass123",
         )
         self.client.force_authenticate(self.user)
 
@@ -209,12 +211,11 @@ class OrderTests(TestCase):
         self.assertEqual(order.tickets.count(), 2)
 
     def test_list_orders_for_user(self):
-        flight = sample_flight()
         Order.objects.create(user=self.user)
 
         other_user = get_user_model().objects.create_user(
-            "other@test.com",
-            "testpass123",
+            username="otheruser",
+            password="testpass123",
         )
         Order.objects.create(user=other_user)
 
