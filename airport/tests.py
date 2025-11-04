@@ -9,17 +9,12 @@ from datetime import timedelta
 from airport.models import (
     Airport,
     Route,
-    Crew,
     AirplaneType,
     Airplane,
     Flight,
     Order,
-    Ticket
 )
-from airport.serializers import (
-    AirportSerializer,
-    AirplaneListSerializer,
-)
+from airport.serializers import AirportSerializer
 
 AIRPORT_URL = reverse("airport:airport-list")
 AIRPLANE_URL = reverse("airport:airplane-list")
@@ -109,7 +104,7 @@ class AuthenticatedAirportApiTests(TestCase):
         serializer = AirportSerializer(airports, many=True)
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(res.data, serializer.data)
+        self.assertEqual(res.data["results"], serializer.data)
 
     def test_create_airport(self):
         payload = {
@@ -139,11 +134,8 @@ class AirplaneTests(TestCase):
 
         res = self.client.get(AIRPLANE_URL)
 
-        airplanes = Airplane.objects.all()
-        serializer = AirplaneListSerializer(airplanes, many=True)
-
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(res.data), 2)
+        self.assertEqual(len(res.data["results"]), 2)
 
     def test_airplane_capacity(self):
         airplane = sample_airplane(rows=30, seats_in_row=6)
@@ -166,7 +158,7 @@ class FlightTests(TestCase):
         res = self.client.get(FLIGHT_URL)
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(res.data), 2)
+        self.assertEqual(len(res.data["results"]), 2)
 
     def test_filter_flights_by_source(self):
         airport1 = sample_airport(name="Warsaw")
@@ -183,7 +175,7 @@ class FlightTests(TestCase):
         res = self.client.get(FLIGHT_URL, {"source": "Warsaw"})
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(res.data), 1)
+        self.assertEqual(len(res.data["results"]), 1)
 
 
 class OrderTests(TestCase):
